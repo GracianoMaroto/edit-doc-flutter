@@ -1,9 +1,9 @@
-
 import 'package:material_ui/material_ui.dart';
+
 import '../models/documento.dart';
-import '../viewmodels/documentos_viewmodel.dart';
+import '../models/services/preferences_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'editor_view.dart';
+import '../viewmodels/documentos_viewmodel.dart';
 
 class HomeView extends StatefulWidget {
   final String nomeUsuario;
@@ -30,14 +30,13 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _abrirEditor({Documento? documento}) async {
-    final resultado = await showDialog<Documento>(
-      context: context,
-      builder: (context) {
-        return EditorDocumentoDialog(documento: documento);
-      },
+    final resultado = await Navigator.pushNamed(
+      context,
+      '/editor',
+      arguments: documento,
     );
 
-    if (resultado == null || !mounted) return;
+    if (resultado is! Documento || !mounted) return;
 
     try {
       await widget.documentosVM.salvarDocumento(
@@ -63,6 +62,48 @@ class _HomeViewState extends State<HomeView> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao salvar documento: $e')),
+      );
+    }
+  }
+
+  Future<void> _excluirDocumento(Documento documento) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Excluir documento'),
+          content: Text(
+            'Deseja excluir "${documento.titulo}"? Esta ação não pode ser desfeita.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      await widget.documentosVM.excluirDocumento(documento.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Documento excluído.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao excluir documento: $e')),
       );
     }
   }
@@ -113,25 +154,35 @@ class _HomeViewState extends State<HomeView> {
         return AnimatedBuilder(
           animation: widget.authVM,
           builder: (context, child) {
+            final temaEscuro =
+                widget.authVM.tema == PreferencesService.temaEscuro;
+
             return AlertDialog(
               title: const Text('Minhas Preferências'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.palette),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.palette),
                     title: const Text('Tema do aplicativo'),
                     subtitle: Text(widget.authVM.tema),
+                    value: temaEscuro,
+                    onChanged: (escuro) {
+                      widget.authVM.salvarTema(
+                        escuro
+                            ? PreferencesService.temaEscuro
+                            : PreferencesService.temaClaro,
+                      );
+                    },
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.notifications),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.notifications),
                     title: const Text('Notificações'),
                     subtitle: Text(
-                      widget.authVM.notificacoes
-                          ? 'Ativadas'
-                          : 'Desativadas',
+                      widget.authVM.notificacoes ? 'Ativadas' : 'Desativadas',
                     ),
+                    value: widget.authVM.notificacoes,
+                    onChanged: widget.authVM.salvarNotificacoes,
                   ),
                 ],
               ),
@@ -204,6 +255,12 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  Future<void> _sair() async {
+    await widget.authVM.logout();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,13 +271,7 @@ class _HomeViewState extends State<HomeView> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/',
-                (route) => false,
-              );
-            },
+            onPressed: _sair,
           ),
         ],
       ),
@@ -228,14 +279,13 @@ class _HomeViewState extends State<HomeView> {
         animation: widget.documentosVM,
         builder: (context, child) {
           final documentos = widget.documentosVM.documentos;
-          final carregando =
-              widget.documentosVM.carregandoDocumentos;
+          final carregando = widget.documentosVM.carregandoDocumentos;
 
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
               Text(
-                'Olá, ${widget.nomeUsuario}!',
+                'Olá, ${widget.authVM.nomeUsuario}!',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -247,8 +297,6 @@ class _HomeViewState extends State<HomeView> {
                 style: TextStyle(fontSize: 15),
               ),
               const SizedBox(height: 25),
-
-              // CARD DE PREFERÊNCIAS
               Card(
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
@@ -265,8 +313,7 @@ class _HomeViewState extends State<HomeView> {
                         SizedBox(width: 15),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Preferências do Usuário',
@@ -277,7 +324,7 @@ class _HomeViewState extends State<HomeView> {
                               ),
                               SizedBox(height: 5),
                               Text(
-                                'Consultar tema e notificações salvas.',
+                                'Alterar tema e notificações salvas.',
                               ),
                             ],
                           ),
@@ -288,10 +335,7 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 15),
-
-              // CARD DE USUÁRIOS
               Card(
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
@@ -308,8 +352,7 @@ class _HomeViewState extends State<HomeView> {
                         SizedBox(width: 15),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Usuários no Banco Local',
@@ -331,11 +374,8 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 25),
               const Divider(),
-
-              // SEÇÃO DE DOCUMENTOS
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -355,9 +395,7 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 15),
-
               if (carregando)
                 const Center(
                   child: Padding(
@@ -402,8 +440,7 @@ class _HomeViewState extends State<HomeView> {
                               '${documento.atualizadoEm.month.toString().padLeft(2, '0')}/'
                               '${documento.atualizadoEm.year}',
                             ),
-                            onTap: () =>
-                                _mostrarModoLeitura(documento),
+                            onTap: () => _mostrarModoLeitura(documento),
                           ),
                           const Divider(height: 1),
                           Row(
@@ -416,11 +453,15 @@ class _HomeViewState extends State<HomeView> {
                                 label: const Text('Modo leitura'),
                               ),
                               TextButton.icon(
-                                onPressed: () => _abrirEditor(
-                                  documento: documento,
-                                ),
+                                onPressed: () =>
+                                    _abrirEditor(documento: documento),
                                 icon: const Icon(Icons.edit),
                                 label: const Text('Editar'),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => _excluirDocumento(documento),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Excluir'),
                               ),
                             ],
                           ),
@@ -433,8 +474,6 @@ class _HomeViewState extends State<HomeView> {
           );
         },
       ),
-
-      // RODAPÉ
       bottomNavigationBar: const BottomAppBar(
         child: Padding(
           padding: EdgeInsets.all(15),

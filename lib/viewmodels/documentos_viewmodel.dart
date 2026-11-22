@@ -1,12 +1,13 @@
-
 import 'package:material_ui/material_ui.dart';
+
 import '../models/documento.dart';
-import '../models/services/banco_local_service.dart';
+import '../models/services/documento_storage_service.dart';
 
 class DocumentosViewModel extends ChangeNotifier {
-  final BancoLocalService _banco;
+  final DocumentoStorageService _storage;
 
-  DocumentosViewModel(this._banco);
+  DocumentosViewModel([DocumentoStorageService? storage])
+      : _storage = storage ?? DocumentoStorageService();
 
   List<Documento> _documentos = [];
   bool _carregandoDocumentos = false;
@@ -20,7 +21,7 @@ class DocumentosViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _documentos = await _banco.obterTodosDocumentos();
+      _documentos = await _storage.obterTodos();
     } finally {
       _carregandoDocumentos = false;
       notifyListeners();
@@ -33,15 +34,16 @@ class DocumentosViewModel extends ChangeNotifier {
     required String conteudo,
   }) async {
     if (documento == null) {
-      await _banco.inserirDocumento(titulo, conteudo);
+      await _storage.inserir(titulo, conteudo);
     } else {
-      await _banco.atualizarDocumento(
-        documento.id,
-        titulo,
-        conteudo,
-      );
+      await _storage.atualizar(documento.id, titulo, conteudo);
     }
 
+    await carregarDocumentos();
+  }
+
+  Future<void> excluirDocumento(int id) async {
+    await _storage.excluir(id);
     await carregarDocumentos();
   }
 }

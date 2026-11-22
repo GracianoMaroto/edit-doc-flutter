@@ -22,10 +22,10 @@ class Usuario {
 
   factory Usuario.fromMap(Map<String, dynamic> map) {
     return Usuario(
-      id: map['id'],
-      nome: map['nome'],
-      email: map['email'],
-      senha: map['senha'],
+      id: map['id'] == null ? null : (map['id'] as num).toInt(),
+      nome: map['nome'] as String,
+      email: map['email'] as String,
+      senha: map['senha'] as String,
     );
   }
 }

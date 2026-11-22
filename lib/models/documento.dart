@@ -23,10 +23,10 @@ class Documento {
 
   factory Documento.fromMap(Map<String, dynamic> map) {
     return Documento(
-      id: map['id'],
-      titulo: map['titulo'],
-      conteudo: map['conteudo'],
-      atualizadoEm: DateTime.parse(map['atualizadoEm']),
+      id: (map['id'] as num).toInt(),
+      titulo: map['titulo'] as String,
+      conteudo: map['conteudo'] as String,
+      atualizadoEm: DateTime.parse(map['atualizadoEm'] as String),
     );
   }
 }

@@ -1,35 +1,29 @@
-
 import 'package:material_ui/material_ui.dart';
+
 import '../models/documento.dart';
 
-class EditorDocumentoDialog extends StatefulWidget {
+class EditorView extends StatefulWidget {
   final Documento? documento;
 
-  const EditorDocumentoDialog({
-    super.key,
-    this.documento,
-  });
+  const EditorView({super.key, this.documento});
 
   @override
-  State<EditorDocumentoDialog> createState() =>
-      _EditorDocumentoDialogState();
+  State<EditorView> createState() => _EditorViewState();
 }
 
-class _EditorDocumentoDialogState
-    extends State<EditorDocumentoDialog> {
+class _EditorViewState extends State<EditorView> {
   final _formKey = GlobalKey<FormState>();
-
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
+
+  bool get _editando => widget.documento != null;
 
   @override
   void initState() {
     super.initState();
-
     _tituloController = TextEditingController(
       text: widget.documento?.titulo ?? '',
     );
-
     _conteudoController = TextEditingController(
       text: widget.documento?.conteudo ?? '',
     );
@@ -57,65 +51,59 @@ class _EditorDocumentoDialogState
 
   @override
   Widget build(BuildContext context) {
-    final editando = widget.documento != null;
-
-    return AlertDialog(
-      title: Text(
-        editando ? 'Editar documento' : 'Novo documento',
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_editando ? 'Editar documento' : 'Novo documento'),
+        centerTitle: true,
       ),
-      content: SizedBox(
-        width: double.maxFinite,
+      body: SafeArea(
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _tituloController,
-                  decoration: const InputDecoration(
-                    labelText: 'Título',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Informe o título do documento.';
-                    }
-                    return null;
-                  },
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              TextFormField(
+                controller: _tituloController,
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _conteudoController,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Conteúdo',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Informe o conteúdo do documento.';
-                    }
-                    return null;
-                  },
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Informe o título do documento.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _conteudoController,
+                maxLines: 12,
+                decoration: const InputDecoration(
+                  labelText: 'Conteúdo',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
                 ),
-              ],
-            ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Informe o conteúdo do documento.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _salvar,
+                icon: const Icon(Icons.save),
+                label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Salvar'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: _salvar,
-          icon: const Icon(Icons.save),
-          label: const Text('Salvar'),
-        ),
-      ],
     );
   }
 }
